@@ -26,6 +26,10 @@ void main() {
   testWidgets('controller closes with a result', _controllerClose);
   testWidgets('predictive back lifts, scales and commits', _predictiveBack);
   testWidgets('predictive back cancel springs back', _predictiveCancel);
+  testWidgets(
+    'predictive back keeps the body scroll position',
+    _backKeepsScroll,
+  );
   testWidgets('reads as a dialog: headline, then close', _semantics);
   testWidgets('keyboard lands on close; Enter closes', _keyboard);
   testWidgets('focus ring hides after a pointer tap', _pointerHidesRing);
@@ -351,6 +355,58 @@ Future<void> _predictiveCancel(WidgetTester tester) async {
   await tester.pumpAndSettle();
   expect(_surface, findsOneWidget);
   expect(tester.getRect(_surface).width, 256);
+}
+
+Future<void> _backKeepsScroll(WidgetTester tester) async {
+  final BuildContext context = await _pump(tester);
+  M3ESideSheet.show<void>(
+    context,
+    title: 'Filters',
+    scrollable: true,
+    body: Column(
+      children: <Widget>[
+        for (var i = 0; i < 40; i++) SizedBox(height: 48, child: Text('R$i')),
+      ],
+    ),
+  );
+  await tester.pumpAndSettle();
+  final ScrollableState scrollable = tester.state<ScrollableState>(
+    find.byType(Scrollable),
+  );
+  await tester.drag(find.text('R3'), const Offset(-100, -300));
+  await tester.pumpAndSettle();
+  expect(scrollable.position.pixels, greaterThan(0), reason: 'body scrolled');
+
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(0.5));
+  await tester.pump();
+  expect(
+    identical(
+      scrollable,
+      tester.state<ScrollableState>(find.byType(Scrollable)),
+    ),
+    isTrue,
+    reason: 'the back drag must keep the sheet body alive',
+  );
+  expect(
+    tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels,
+    scrollable.position.pixels,
+  );
+
+  await _sendBack(tester, 'cancelBackGesture');
+  await tester.pumpAndSettle();
+  expect(
+    identical(
+      scrollable,
+      tester.state<ScrollableState>(find.byType(Scrollable)),
+    ),
+    isTrue,
+    reason: 'the cancelled settle must keep the sheet body alive',
+  );
+  expect(
+    tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels,
+    scrollable.position.pixels,
+  );
 }
 
 Future<void> _semantics(WidgetTester tester) async {
