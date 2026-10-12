@@ -34,6 +34,9 @@ void main() {
   testWidgets('showAdaptive swaps to a side sheet at 840dp', _adaptive);
   testWidgets('inner list grows the sheet before scrolling', _scrollHandOff);
   testWidgets('predictive back shrinks the sheet', _predictiveBack);
+  testWidgets('predictive back keeps the inner list alive', _backKeepsScroll);
+  testWidgets('predictive back exit keeps the scale steady', _backExitSteady);
+  testWidgets('theme change keeps the sheet content alive', _themeKeepsContent);
   testWidgets(
     'content resize during exit does not bounce the sheet up',
     _exitResizeNoBounce,
@@ -396,6 +399,34 @@ Future<void> _scrollHandOff(WidgetTester tester) async {
   expect(position.pixels, greaterThan(0), reason: 'then the list scrolls');
 }
 
+Future<void> _sendBack(
+  WidgetTester tester,
+  String method, [
+  Map<String, dynamic>? args,
+]) async {
+  final ByteData data = const StandardMethodCodec().encodeMethodCall(
+    MethodCall(method, args),
+  );
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    SystemChannels.backGesture.name,
+    data,
+    (ByteData? _) {},
+  );
+}
+
+Map<String, dynamic> _backArgs(double progress) => <String, dynamic>{
+  'touchOffset': <double>[5, 600],
+  'progress': progress,
+  'swipeEdge': 0,
+};
+
+double _sheetScaleY(WidgetTester tester) {
+  final Transform transform = tester.widget<Transform>(
+    find.ancestor(of: _surface, matching: find.byType(Transform)).first,
+  );
+  return transform.transform.storage[5];
+}
+
 Future<void> _predictiveBack(WidgetTester tester) async {
   final BuildContext context = await _pump(tester, const Size(400, 800));
   var closed = false;
@@ -405,35 +436,128 @@ Future<void> _predictiveBack(WidgetTester tester) async {
   ).then((_) => closed = true);
   await tester.pumpAndSettle();
 
-  Future<void> send(String method, [Map<String, dynamic>? args]) async {
-    final ByteData data = const StandardMethodCodec().encodeMethodCall(
-      MethodCall(method, args),
-    );
-    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
-      SystemChannels.backGesture.name,
-      data,
-      (ByteData? _) {},
-    );
-  }
-
-  final args = <String, dynamic>{
-    'touchOffset': <double>[5, 600],
-    'progress': 0.0,
-    'swipeEdge': 0,
-  };
-  await send('startBackGesture', args);
-  await send('updateBackGestureProgress', <String, dynamic>{
-    ...args,
-    'progress': 1.0,
-  });
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(1));
   await tester.pump();
   final Transform transform = tester.widget<Transform>(
     find.ancestor(of: _surface, matching: find.byType(Transform)).first,
   );
   expect(transform.transform.storage[0], closeTo(1 - 48 / 400, 0.001));
-  await send('commitBackGesture');
+  await _sendBack(tester, 'commitBackGesture');
   await tester.pumpAndSettle();
   expect(closed, isTrue);
+}
+
+Future<void> _backKeepsScroll(WidgetTester tester) async {
+  final BuildContext context = await _pump(tester, const Size(400, 800));
+  M3EBottomSheet.show<void>(
+    context,
+    initialValue: M3EBottomSheetValue.expanded,
+    builder: _longList,
+  );
+  await tester.pumpAndSettle();
+  await tester.drag(find.text('Row 2'), const Offset(0, -200));
+  await tester.pumpAndSettle();
+  final ScrollableState scrollable = tester.state<ScrollableState>(
+    find.byType(Scrollable),
+  );
+  expect(scrollable.position.pixels, greaterThan(0), reason: 'list scrolled');
+
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(0.5));
+  await tester.pump();
+  expect(
+    identical(
+      scrollable,
+      tester.state<ScrollableState>(find.byType(Scrollable)),
+    ),
+    isTrue,
+    reason: 'the back drag must keep the sheet content alive',
+  );
+  expect(
+    tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels,
+    scrollable.position.pixels,
+  );
+
+  await _sendBack(tester, 'cancelBackGesture');
+  await tester.pumpAndSettle();
+  expect(
+    identical(
+      scrollable,
+      tester.state<ScrollableState>(find.byType(Scrollable)),
+    ),
+    isTrue,
+    reason: 'the cancelled settle must keep the sheet content alive',
+  );
+  expect(
+    tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels,
+    scrollable.position.pixels,
+  );
+}
+
+Future<void> _backExitSteady(WidgetTester tester) async {
+  final BuildContext context = await _pump(tester, const Size(400, 800));
+  var closed = false;
+  M3EBottomSheet.show<void>(
+    context,
+    initialValue: M3EBottomSheetValue.expanded,
+    builder: _longList,
+  ).then((_) => closed = true);
+  await tester.pumpAndSettle();
+
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(1));
+  await tester.pump();
+  final double scaleY = _sheetScaleY(tester);
+  await _sendBack(tester, 'commitBackGesture');
+  for (var i = 0; i < 30 && _surface.evaluate().isNotEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (_surface.evaluate().isEmpty) {
+      break;
+    }
+    expect(
+      _sheetScaleY(tester),
+      closeTo(scaleY, 0.0001),
+      reason: 'the scale must stay put while the sheet exits (frame $i)',
+    );
+  }
+  await tester.pumpAndSettle();
+  expect(closed, isTrue);
+}
+
+Future<void> _themeKeepsContent(WidgetTester tester) async {
+  final BuildContext context = await _pump(tester, const Size(400, 800));
+  M3EBottomSheet.show<void>(
+    context,
+    initialValue: M3EBottomSheetValue.expanded,
+    builder: _longList,
+  );
+  await tester.pumpAndSettle();
+  await tester.drag(find.text('Row 2'), const Offset(0, -200));
+  await tester.pumpAndSettle();
+  final ScrollableState scrollable = tester.state<ScrollableState>(
+    find.byType(Scrollable),
+  );
+  expect(scrollable.position.pixels, greaterThan(0), reason: 'list scrolled');
+
+  await _pump(
+    tester,
+    const Size(400, 800),
+    theme: M3EThemeData.dark(seedColor: const Color(0xFF6750A4)),
+  );
+  await tester.pumpAndSettle();
+  expect(
+    identical(
+      scrollable,
+      tester.state<ScrollableState>(find.byType(Scrollable)),
+    ),
+    isTrue,
+    reason: 'the brightness flip must keep the sheet content alive',
+  );
+  expect(
+    tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels,
+    scrollable.position.pixels,
+  );
 }
 
 Future<void> _exitResizeNoBounce(WidgetTester tester) async {

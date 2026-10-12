@@ -271,7 +271,9 @@ class _M3EBottomSheetModalHostState extends State<M3EBottomSheetModalHost>
       entrance: _entrance,
       backProgress: _back,
       handleFocusNode: _handle,
-      overlayStyle: light ? M3EBottomSheetSystemUi.lightSurface : null,
+      overlayStyle: light
+          ? M3EBottomSheetSystemUi.lightSurface
+          : M3EScrimSystemUi.bottomSheetOverlayStyle,
       child: widget.child,
     );
   }
