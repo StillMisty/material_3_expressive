@@ -34,6 +34,10 @@ void main() {
   testWidgets('showAdaptive swaps to a side sheet at 840dp', _adaptive);
   testWidgets('inner list grows the sheet before scrolling', _scrollHandOff);
   testWidgets('predictive back shrinks the sheet', _predictiveBack);
+  testWidgets(
+    'predictive back still previews through the dismiss guard',
+    _backWithGuard,
+  );
   testWidgets('predictive back keeps the inner list alive', _backKeepsScroll);
   testWidgets('predictive back exit keeps the scale steady', _backExitSteady);
   testWidgets('theme change keeps the sheet content alive', _themeKeepsContent);
@@ -446,6 +450,45 @@ Future<void> _predictiveBack(WidgetTester tester) async {
   await _sendBack(tester, 'commitBackGesture');
   await tester.pumpAndSettle();
   expect(closed, isTrue);
+}
+
+Future<void> _backWithGuard(WidgetTester tester) async {
+  final BuildContext context = await _pump(tester, const Size(400, 800));
+  var allow = false;
+  var closed = false;
+  M3EBottomSheet.show<void>(
+    context,
+    builder: _short,
+    onDismissRequest: () async => allow,
+  ).then((_) => closed = true);
+  await tester.pumpAndSettle();
+  final double height = tester.getSize(_surface).height;
+
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(1));
+  await tester.pump();
+  expect(
+    _sheetScaleY(tester),
+    closeTo(1 - 24 / height, 0.001),
+    reason: 'a guarded sheet must still preview the predictive back gesture',
+  );
+
+  await _sendBack(tester, 'commitBackGesture');
+  await tester.pumpAndSettle();
+  expect(closed, isFalse, reason: 'a rejected guard keeps the sheet open');
+  expect(
+    _sheetScaleY(tester),
+    closeTo(1, 0.001),
+    reason: 'a rejected preview settles the sheet back to rest',
+  );
+
+  allow = true;
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(1));
+  await tester.pump();
+  await _sendBack(tester, 'commitBackGesture');
+  await tester.pumpAndSettle();
+  expect(closed, isTrue, reason: 'an allowed guard closes the sheet');
 }
 
 Future<void> _backKeepsScroll(WidgetTester tester) async {

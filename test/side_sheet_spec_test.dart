@@ -27,6 +27,10 @@ void main() {
   testWidgets('predictive back lifts, scales and commits', _predictiveBack);
   testWidgets('predictive back cancel springs back', _predictiveCancel);
   testWidgets(
+    'predictive back still previews through the dismiss guard',
+    _backWithGuard,
+  );
+  testWidgets(
     'predictive back keeps the body scroll position',
     _backKeepsScroll,
   );
@@ -355,6 +359,44 @@ Future<void> _predictiveCancel(WidgetTester tester) async {
   await tester.pumpAndSettle();
   expect(_surface, findsOneWidget);
   expect(tester.getRect(_surface).width, 256);
+}
+
+Future<void> _backWithGuard(WidgetTester tester) async {
+  final BuildContext context = await _pump(tester);
+  var allow = false;
+  var closed = false;
+  (await _show(tester, context, onDismissRequest: () async => allow))
+      .then((_) => closed = true);
+
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(1));
+  await tester.pump();
+  final Transform shrink = tester.widget<Transform>(
+    find.ancestor(of: _surface, matching: find.byType(Transform)).first,
+  );
+  expect(
+    shrink.transform.storage[0],
+    closeTo(1 - 24 / 256, 0.001),
+    reason: 'a guarded sheet must still preview the predictive back gesture',
+  );
+
+  await _sendBack(tester, 'commitBackGesture');
+  await tester.pumpAndSettle();
+  expect(closed, isFalse, reason: 'a rejected guard keeps the sheet open');
+  expect(_surface, findsOneWidget);
+  expect(
+    tester.getRect(_surface).width,
+    256,
+    reason: 'a rejected preview settles the sheet back to rest',
+  );
+
+  allow = true;
+  await _sendBack(tester, 'startBackGesture', _backArgs(0));
+  await _sendBack(tester, 'updateBackGestureProgress', _backArgs(1));
+  await tester.pump();
+  await _sendBack(tester, 'commitBackGesture');
+  await tester.pumpAndSettle();
+  expect(closed, isTrue, reason: 'an allowed guard closes the sheet');
 }
 
 Future<void> _backKeepsScroll(WidgetTester tester) async {
