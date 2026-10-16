@@ -115,6 +115,10 @@ Summary of updates since 1.1.6 (details in [`CHANGELOG.md`](CHANGELOG.md)):
   gesture.
 - **Chips** — long labels truncate instead of overflowing.
 - **Dependencies** — `material_ui` raised to `^1.7.0`.
+- **Menus** — removed the unused `components/menus/models/m3e_menu_entry.dart`
+  re-export. The menu models are still exported from
+  `package:material_3_expressive/material_3_expressive.dart`; update any direct
+  import of that path.
 
 ## Installation
 
