@@ -3,6 +3,28 @@
 ### Changed
 
 * Raise `material_ui` to `^1.7.0`.
+* **Bottom sheets, side sheets:** predictive back now works on sheets with an
+  `onDismissRequest` guard. The back preview plays, and on commit the guard
+  decides: if it allows, the sheet closes; if it refuses, the preview springs
+  back to rest
+  ([#32](https://github.com/paadevelopments/material_3_expressive/pull/32),
+  thanks @StillMisty).
+
+### Fixed
+
+* **Chips:** a long label now truncates with an ellipsis inside a bounded
+  layout instead of overflowing the chip
+  ([#30](https://github.com/paadevelopments/material_3_expressive/pull/30),
+  thanks @StillMisty).
+* **Bottom sheets:** starting a predictive back gesture no longer resets the
+  content's state, and the sheet scales by its visible height so the shrink
+  stays steady. Sheets on a dark surface keep the scrim system bar style
+  ([#31](https://github.com/paadevelopments/material_3_expressive/pull/31),
+  thanks @StillMisty).
+* **Side sheets:** starting a predictive back gesture no longer resets the
+  content's state
+  ([#31](https://github.com/paadevelopments/material_3_expressive/pull/31),
+  thanks @StillMisty).
 
 ## 1.1.6
 

@@ -110,6 +110,10 @@ through this package). Prefer those APIs rather than a local duplicate.
 
 Summary of updates since 1.1.6 (details in [`CHANGELOG.md`](CHANGELOG.md)):
 
+- **Bottom sheets, side sheets** — predictive back works with an
+  `onDismissRequest` guard, and the content keeps its state during the
+  gesture.
+- **Chips** — long labels truncate instead of overflowing.
 - **Dependencies** — `material_ui` raised to `^1.7.0`.
 
 ## Installation
