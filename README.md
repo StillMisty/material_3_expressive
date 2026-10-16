@@ -89,7 +89,7 @@ flutter run
 
 ## Migrating to `material_ui`
 
-This package uses [`material_ui`](https://pub.dev/packages/material_ui) `^1.6.0`
+This package uses [`material_ui`](https://pub.dev/packages/material_ui) `^1.7.0`
 for Material widgets (`MaterialApp`, `ThemeData`, `ColorScheme`, and the rest of
 the Material library). **Do not import** `package:flutter/material.dart`.
 
@@ -106,15 +106,11 @@ imports to `package:material_ui/material_ui.dart`. Flutter **3.47.0 or newer**
 [`dynamic_color`](https://pub.dev/packages/dynamic_color) `^2.1.0` (re-exported
 through this package). Prefer those APIs rather than a local duplicate.
 
-## What's new in 1.1.6
+## What's new in 1.1.7
 
-Summary of updates since 1.1.5 (details in [`CHANGELOG.md`](CHANGELOG.md)):
+Summary of updates since 1.1.6 (details in [`CHANGELOG.md`](CHANGELOG.md)):
 
-- **Carousel** — `M3ECarouselScrim.gradient` for a scrim that fades in under
-  the text.
-- **Sliders** — inner stop dots now match the end stops in size and color.
-- **Bottom sheets** — a closing sheet no longer bounces back up.
-- **Dependencies** — `material_ui` raised to `^1.6.0`.
+- **Dependencies** — `material_ui` raised to `^1.7.0`.
 
 ## Installation
 
@@ -122,7 +118,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  material_3_expressive: ^1.1.6
+  material_3_expressive: ^1.1.7
 ```
 
 Then fetch it:
